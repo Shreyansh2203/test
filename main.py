@@ -6,29 +6,26 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 import shutil
 import tempfile
 
-# ------------------------------------------------------
-# PDF TEXT EXTRACTION
-# ------------------------------------------------------
 
 def extract_text_with_pdfplumber(pdf_path):
+    pages_content = []
     try:
-        text = ""
         with pdfplumber.open(pdf_path) as pdf:
             for i, page in enumerate(pdf.pages):
-                text += f"--- Page {i+1} ---\n"
                 page_text = page.extract_text(x_tolerance=2, y_tolerance=2)
-                if page_text:
-                    text += page_text + "\n"
-                else:
-                    text += "[No text found on this page]\n"
-        return text
+                if not page_text:
+                    page_text = "[No text found on this page]"
+                
+                pages_content.append({
+                    "pagenumber": i + 1,
+                    "raw_text": page_text
+                })
+        return pages_content
     except Exception as e:
-        return f"Error extracting {pdf_path}: {e}"
+        print(f"Error extracting {pdf_path}: {e}")
+        return []
 
 
-# ------------------------------------------------------
-# FILE DISCOVERY
-# ------------------------------------------------------
 
 def find_all_pdfs(start_dir="."):
     pdf_files = []
@@ -46,18 +43,12 @@ def get_unique_output_name(pdf_path, output_dir):
     return os.path.join(output_dir, safe_name)
 
 
-# ------------------------------------------------------
-# CONFIG LOADER
-# ------------------------------------------------------
 
 def load_header_config(config_path="header_config.yaml"):
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
-# ------------------------------------------------------
-# HEADER NORMALIZATION ENGINE
-# ------------------------------------------------------
 
 def normalize_headers(text, config):
     canonical_fields = config.get("canonical_fields", {})
@@ -81,13 +72,6 @@ def normalize_headers(text, config):
     return text
 
 
-# ------------------------------------------------------
-# MAIN EXECUTION
-# ------------------------------------------------------
-
-# ------------------------------------------------------
-# FASTAPI APP
-# ------------------------------------------------------
 
 app = FastAPI()
 
@@ -96,24 +80,22 @@ async def extract_text_endpoint(file: UploadFile = File(...)):
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="File must be a PDF")
     
-    # Save uploaded file to a temporary file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         shutil.copyfileobj(file.file, tmp)
         tmp_path = tmp.name
     
     try:
-        # Re-use existing logic
-        text = extract_text_with_pdfplumber(tmp_path)
+        pages = extract_text_with_pdfplumber(tmp_path)
         
-        # Load config - relying on default path in current directory
         try:
             config = load_header_config()
         except FileNotFoundError:
              config = {"canonical_fields": {}, "options": {}}
 
-        normalized_text = normalize_headers(text, config)
+        for page in pages:
+            page["raw_text"] = normalize_headers(page["raw_text"], config)
         
-        return {"filename": file.filename, "extracted_text": normalized_text}
+        return {"filename": file.filename, "pages": pages}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
@@ -145,12 +127,15 @@ if __name__ == "__main__":
         output_path = get_unique_output_name(pdf_file, output_dir)
         print(f"Processing: {pdf_file} -> {output_path}")
 
-        raw_text = extract_text_with_pdfplumber(pdf_file)
-        normalized_text = normalize_headers(raw_text, config)
-
+        pages = extract_text_with_pdfplumber(pdf_file)
+        
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(f"Source: {pdf_file}\n")
             f.write("=" * 40 + "\n\n")
-            f.write(normalized_text)
+            
+            for page in pages:
+                normalized_text = normalize_headers(page["raw_text"], config)
+                f.write(f"--- Page {page['pagenumber']} ---\n")
+                f.write(normalized_text + "\n")
 
     print("\n✅ Extraction and header normalization completed.")
