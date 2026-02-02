@@ -1,0 +1,76 @@
+# ======================================================
+# Canonical Field Normalization Rules
+# ======================================================
+
+canonical_fields:
+
+  InvoiceAmount:
+    aliases:
+      - "Amount"
+      - "Invoice Amount"
+      - "Bill Amount"
+      - "Line Amount"
+      - "Payment Amount"
+      - "Net"
+      - "Net Amount"
+      - "Net Payment Amt"
+      - "Amount Paid"
+      - "Montant payé"
+      - "Montant net"
+      - "Paiement"
+      - "Payment"
+      - "Gross Amount"
+    notes: >
+      Use "Gross Amount" only if clearly per-invoice and not a total.
+
+  InvoiceNumber:
+    aliases:
+      - "Invoice No"
+      - "Invoice #"
+      - "Inv No"
+      - "Inv#"
+      - "Bill No"
+      - "Bill #"
+      - "Reference Invoice"
+      - "Tax Invoice No"
+      - "Document No"
+      - "Voucher No"
+      - "Bill Ref"
+      - "Instrument Payable"
+      - "Description"
+      - "Your Invoice Number"
+      - "Your Voucher Number"
+      - "Inv./Ref. No."
+      - "No Facture"
+      - "Facture"
+      - "Transaction"
+    rules:
+      - "May be numeric or alphanumeric"
+      - "May contain letters, hyphens, or slashes"
+      - "Examples: 1023/24, 0-325671823888, SP-W-EFT603367916"
+      - "Must appear in invoice-level tabular context"
+
+  PaymentReference:
+    aliases:
+      - "Payment Reference"
+      - "Payment Ref"
+      - "Reference"
+      - "Reference No"
+      - "No. référence"
+      - "Transaction ID"
+      - "Txn Ref"
+      - "Bank Reference"
+      - "UTR"
+      - "NEFT Ref"
+      - "RTGS Ref"
+      - "IMPS Ref"
+      - "EFT Reference"
+      - "Payment Number"
+      - "Payment No"
+      - "Cheque Number"
+      - "Check No"
+      - "Direct Deposit No"
+
+options:
+  case_insensitive: true
+  whole_word_match: true

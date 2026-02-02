@@ -1,0 +1,5 @@
+pdfplumber
+PyYAML
+fastapi
+python-multipart
+uvicorn
