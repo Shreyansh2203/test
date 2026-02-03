@@ -20,11 +20,24 @@ def extract_text_with_pdfplumber(pdf_path):
                     "pagenumber": i + 1,
                     "raw_text": page_text
                 })
-        return pages_content
+
+        grouped_pages = []
+        for i in range(0, len(pages_content), 10):
+            chunk = pages_content[i:i + 10]
+            combined_text = "\n\n".join([p["raw_text"] for p in chunk])
+            start_page = chunk[0]["pagenumber"]
+            end_page = chunk[-1]["pagenumber"]
+            page_label = f"{start_page}-{end_page}" if start_page != end_page else str(start_page)
+            
+            grouped_pages.append({
+                "pagenumber": page_label,
+                "raw_text": combined_text
+            })
+            
+        return grouped_pages
     except Exception as e:
         print(f"Error extracting {pdf_path}: {e}")
         return []
-
 
 
 def find_all_pdfs(start_dir="."):
@@ -35,20 +48,15 @@ def find_all_pdfs(start_dir="."):
                 pdf_files.append(os.path.join(root, file))
     return pdf_files
 
-
 def get_unique_output_name(pdf_path, output_dir):
     base_name = os.path.basename(pdf_path)
     parent_folder = os.path.basename(os.path.dirname(os.path.abspath(pdf_path)))
     safe_name = f"{parent_folder}_{os.path.splitext(base_name)[0]}.txt"
     return os.path.join(output_dir, safe_name)
 
-
-
 def load_header_config(config_path="header_config.yaml"):
     with open(config_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
-
-
 
 def normalize_headers(text, config):
     canonical_fields = config.get("canonical_fields", {})
@@ -70,8 +78,6 @@ def normalize_headers(text, config):
             text = re.sub(pattern, canonical_name, text, flags=flags)
 
     return text
-
-
 
 app = FastAPI()
 
