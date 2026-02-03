@@ -81,7 +81,46 @@ def normalize_headers(text, config):
 
 app = FastAPI()
 
+from pydantic import BaseModel
+import base64
+
+class FileRequest(BaseModel):
+    contentType: str = "PDF"
+    contentBytes: str  # Base64 encoded PDF content
+
 @app.post("/extract")
+async def extract_text_json_endpoint(request: FileRequest):
+    if request.contentType not in ["application/pdf", "PDF"]:
+         raise HTTPException(status_code=400, detail="Content type must be PDF or application/pdf")
+
+    try:
+        # Decode base64 content
+        file_content = base64.b64decode(request.contentBytes)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(file_content)
+            tmp_path = tmp.name
+
+        pages = extract_text_with_pdfplumber(tmp_path)
+        
+        try:
+            config = load_header_config()
+        except FileNotFoundError:
+             config = {"canonical_fields": {}, "options": {}}
+
+        for page in pages:
+            page["raw_text"] = normalize_headers(page["raw_text"], config)
+        
+        return {"filename": "document.pdf", "pages": pages}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
+@app.post("/PDF")
 async def extract_text_endpoint(file: UploadFile = File(...)):
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="File must be a PDF")
